@@ -18,14 +18,13 @@ def download_pdf(url, save_path):
 
 def pdf_to_image(pdf_path, output_image_path="output_image.jpg", zoom_factor=2):
     """Convert PDF to a single image with improved clarity."""
-    # Open the PDF
     pdf_document = fitz.open(pdf_path)
     images = []
     
     for page_num in range(len(pdf_document)):
-        # Render page to an image with a zoom factor for higher DPI
+        # render page to an image with a zoom factor for higher DPI
         page = pdf_document[page_num]
-        matrix = fitz.Matrix(zoom_factor, zoom_factor)  # Increase resolution
+        matrix = fitz.Matrix(zoom_factor, zoom_factor)  # increase resolution
         pix = page.get_pixmap(matrix=matrix)
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
         images.append(img)
@@ -35,20 +34,20 @@ def pdf_to_image(pdf_path, output_image_path="output_image.jpg", zoom_factor=2):
     if not images:
         raise ValueError("No images extracted from the PDF.")
 
-    # Combine images vertically into one
+    # combine images vertically into one
     total_height = sum(img.height for img in images)
     max_width = max(img.width for img in images)
 
-    # Create a blank image with the combined size
+    # create a blank image with the combined size
     combined_image = Image.new("RGB", (max_width, total_height))
 
-    # Paste all images into the combined image
+    # merge all images into 1
     y_offset = 0
     for img in images:
         combined_image.paste(img, (0, y_offset))
         y_offset += img.height
 
-    # Save the final image
+    # save the final image
     combined_image.save(output_image_path)
     print(f"PDF converted to image and saved as '{output_image_path}'.")
 
