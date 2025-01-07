@@ -16,15 +16,17 @@ def download_pdf(url, save_path):
         raise Exception("Failed to download PDF.")
 
 
-def pdf_to_image(pdf_path, output_image_path="output_image.jpg"):
-    """Convert PDF to a single image."""
+def pdf_to_image(pdf_path, output_image_path="output_image.jpg", zoom_factor=2):
+    """Convert PDF to a single image with improved clarity."""
+    # Open the PDF
     pdf_document = fitz.open(pdf_path)
     images = []
     
     for page_num in range(len(pdf_document)):
-        # Render page to an image
+        # Render page to an image with a zoom factor for higher DPI
         page = pdf_document[page_num]
-        pix = page.get_pixmap()
+        matrix = fitz.Matrix(zoom_factor, zoom_factor)  # Increase resolution
+        pix = page.get_pixmap(matrix=matrix)
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
         images.append(img)
 
