@@ -42,7 +42,8 @@ async function initializeDatabase() {
 initializeDatabase().catch(console.error);
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -161,13 +162,37 @@ async function processPDFInBackground(
   }
 }
 
+// Add this utility function near other utility functions
+function isValidBase64(str: string): boolean {
+  try {
+    return Buffer.from(str, "base64").toString("base64") === str;
+  } catch {
+    return false;
+  }
+}
+
 // Routes
 app.post("/pdf2image", async (req: express.Request, res: express.Response) => {
   try {
-    const { url } = req.body;
+    const { url, base64 } = req.body;
 
-    if (!url) {
-      return res.status(400).json({ error: "PDF URL is required" });
+    // Check if either url or base64 is provided
+    if (!url && !base64) {
+      return res
+        .status(400)
+        .json({ error: "Either PDF URL or base64 data is required" });
+    }
+
+    // Check if both are provided
+    if (url && base64) {
+      return res
+        .status(400)
+        .json({ error: "Please provide either URL or base64 data, not both" });
+    }
+
+    // Validate base64 if provided
+    if (base64 && !isValidBase64(base64)) {
+      return res.status(400).json({ error: "Invalid base64 data" });
     }
 
     const imageId = uuidv4();
@@ -176,13 +201,36 @@ app.post("/pdf2image", async (req: express.Request, res: express.Response) => {
     // Create initial database entry
     await db.run(
       "INSERT INTO images (id, filepath, original_url, status) VALUES (?, ?, ?, ?)",
-      [imageId, imagePath, url, "processing"]
+      [imageId, imagePath, url || null, "processing"]
     );
 
-    // Start processing in background
-    processPDFInBackground(imageId, url, imagePath);
+    if (base64) {
+      // Process base64 data immediately
+      try {
+        const pdfBuffer = Buffer.from(base64, "base64");
+        const imageBuffer = await combinePDFPagesToSingleImage(pdfBuffer);
+        await fs.promises.writeFile(imagePath, imageBuffer);
+        await db.run("UPDATE images SET status = ? WHERE id = ?", [
+          "completed",
+          imageId,
+        ]);
+      } catch (error) {
+        console.error(`Error processing PDF ${imageId}:`, error);
+        await db.run(
+          "UPDATE images SET status = ?, error_message = ? WHERE id = ?",
+          [
+            "failed",
+            error instanceof Error ? error.message : "Unknown error",
+            imageId,
+          ]
+        );
+      }
+    } else {
+      // Process URL in background as before
+      processPDFInBackground(imageId, url, imagePath);
+    }
 
-    // Immediately return the ID
+    // Return response
     res.json({
       imageId,
       message:
