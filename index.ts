@@ -189,6 +189,7 @@ app.post("/pdf2image", async (req: express.Request, res: express.Response) => {
         "PDF conversion started. Use this ID to check status and retrieve the image.",
       statusEndpoint: `/status/${imageId}`,
       imageEndpoint: `/getimage/${imageId}`,
+      deleteEndpoint: `/deleteimage/${imageId}`,
     });
   } catch (error) {
     console.error("Error initiating PDF processing:", error);
@@ -267,8 +268,8 @@ app.get(
 );
 
 // New delete endpoint
-app.delete(
-  "/image/:imageId",
+app.get(
+  "/deleteimage/:imageId",
   async (req: express.Request, res: express.Response) => {
     try {
       const { imageId } = req.params;
