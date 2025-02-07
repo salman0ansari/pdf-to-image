@@ -11,6 +11,7 @@ import { open } from "sqlite";
 
 const app = express();
 const port = process.env.PORT || 3000;
+const TOKEN = "pdf2image9c6175acb9734425b135dc7cb586d40b";
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "uploads");
@@ -48,6 +49,43 @@ app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("X-XSS-Protection", "1; mode=block");
+  next();
+});
+
+// middleware auth
+app.use((req, res, next) => {
+  if (!req.headers.token) {
+    res.status(401).send({
+      message: "Token header is missing",
+      error: true,
+      statusCode: 401,
+    });
+    return;
+  }
+
+  // check if the token is valid
+  const token = req.headers.token;
+
+  if (!token) {
+    res.status(401).send({
+      message: "Token header is missing",
+      error: true,
+      statusCode: 401,
+    });
+    return;
+  }
+
+  if (token === TOKEN) {
+    next();
+  } else {
+    res.status(401).send({
+      message: "Invalid token",
+      error: true,
+      statusCode: 401,
+    });
+    return;
+  }
+
   next();
 });
 
